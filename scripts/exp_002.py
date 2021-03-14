@@ -181,15 +181,25 @@ def train(config, logdir):
         train_steps = np.ceil(len(df_t)/batch_size)
         val_steps = np.ceil(len(df_v)/batch_size)
         recorder = ShopeeF1Score(ds_val, df_v.posting_id, patience=patience)
+        model_dir = f'{logdir}/models'
         model.fit(ds_train,
                   epochs=epochs,
-                  callbacks=[recorder, callbacks.TensorBoard(log_dir=logdir)],
+                  callbacks=[recorder,
+                             callbacks.TensorBoard(log_dir=logdir),
+                             callbacks.ModelCheckpoint(
+                                 filepath=f'{model_dir}/cv{cv}',
+                                 monitor='val_loss',
+                                 save_best_only=True,
+                                 save_weights_only=True,
+                                 mode='min'
+                             )],
                   validation_data=ds_val,
                   steps_per_epoch=train_steps,
                   validation_steps=val_steps)
-        print(f'Best f1score: {recorder.best:.4f}')
+        best_score = recorder.best_score
+        print(f'Best f1score: {best_score:.4f}')
         model.set_weights(recorder.best_weights)
-        model.save_weights(f'{logdir}/models/ckpt-cv{cv}')
+        model.save_weights(f'{model_dir}/cv{cv}-score{best_score:.4f}')
 
         logits_oof[val_idx] = model.predict(ds_val)
         logits_test += model.predict(ds_test)/n_splits
