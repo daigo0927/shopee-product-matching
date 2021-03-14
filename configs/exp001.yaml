@@ -5,7 +5,7 @@ preprocess:
 
 model:
   image_size: ${preprocess.target_size}
-  effnet_weights: 'assets/effnet_official/efficientnetb0_notop.h5'
+  effnet_weights: 'assets/effnet_official/noisy_student_efficientnet-b0_notop.h5'
   use_weights: 'assets/universal-sentence-encoder-multilingual_3'
 
 train:
