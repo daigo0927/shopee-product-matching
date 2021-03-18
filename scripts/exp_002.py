@@ -196,6 +196,7 @@ def train(config, logdir):
                   validation_data=ds_val,
                   steps_per_epoch=train_steps,
                   validation_steps=val_steps)
+        
         best_score = recorder.best_score
         print(f'Best f1score: {best_score:.4f}')
         model.set_weights(recorder.best_weights)
@@ -225,7 +226,8 @@ def train(config, logdir):
     df_concat['matches'] = df_concat.pred.map(pred_map)
     df_test = df_concat[df_concat.test]
     df_test['matches'] = df_test.matches.apply(lambda x: ' '.join(x))
-    df_test[['posting_id','matches']].to_csv(f'{logdir}/submission.csv',index=False)
+    df_test[['posting_id', 'matches']].to_csv(f'{logdir}/submission.csv',
+                                              index=False)
 
 
 def run():
