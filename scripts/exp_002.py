@@ -130,7 +130,13 @@ def train(config, logdir):
 
     print('Encoding title')
     encoder = hub.KerasLayer(config.preprocess.use_weights)
-    title_embeds_train = encoder(df_train.title)
+
+    n_batches = np.ceil(len(df_train)/1000).astype(int)
+    title_embeds_train = []
+    for i in tqdm(range(n_batches), desc='Embed text'):
+        embeds = encoder(df_train.loc[i*1000:(i+1)*1000, 'title'])
+        title_embeds_train.append(embeds)
+    title_embeds_train = tf.concat(title_embeds_train, axis=0)
     title_embeds_test = encoder(df_test.title)
 
     logits_oof = np.zeros((len(df_train), n_classes))
@@ -159,7 +165,7 @@ def train(config, logdir):
         ds_val = tf.data.Dataset.from_generator(ds_val, output_signature=signatures)
         ds_test = tf.data.Dataset.from_generator(ds_test, output_signature=signatures)
 
-        ds_train = ds_train.repeat(epochs)
+        ds_train = ds_train.repeat(epochs+1)
 
         ds_train = ds_train.map(as_supervised)
         ds_val = ds_val.map(as_supervised)
@@ -197,7 +203,7 @@ def train(config, logdir):
                   steps_per_epoch=train_steps,
                   validation_steps=val_steps)
         
-        best_score = recorder.best_score
+        best_score = recorder.best
         print(f'Best f1score: {best_score:.4f}')
         model.set_weights(recorder.best_weights)
         model.save_weights(f'{model_dir}/cv{cv}-score{best_score:.4f}')

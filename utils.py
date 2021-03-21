@@ -96,8 +96,6 @@ class ShopeeF1Score(callbacks.Callback):
         labels = np.concatenate(labels, axis=0).astype(int)
         current = f1score(self.posting_ids, labels, preds)
 
-        print(f'epoch: {epoch}, labels: {labels.shape}')                
-        
         if current > self.best: # larger is better
             self.best = current
             self.wait = 0
