@@ -9,7 +9,6 @@ model:
   token_length: ${preprocess.max_token_length}
   effnet_weights: 'assets/effnet_official/noisy_student_efficientnet-b0_notop.h5'
   transformer_name: 'bert-base-uncased'
-  output_dim: 1024
 
 train:
   n_splits: 5

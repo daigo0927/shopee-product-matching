@@ -137,7 +137,7 @@ def build_model(image_size,
                 token_length,
                 effnet_weights,
                 transformer_name,
-                output_dim=1024) -> tf.keras.Model:
+                n_classes) -> tf.keras.Model:
     # Image feature
     image = layers.Input([*image_size, 3], dtype=tf.uint8, name='image')
     x = tf.cast(image, dtype=tf.float32)
@@ -168,7 +168,9 @@ def build_model(image_size,
     
     feat = tf.concat([image_feat, text_feat], axis=-1)
     feat = layers.Dropout(0.5)(feat)
-    logits = layers.Dense(output_dim)(feat)
+    feat = layers.Dense(512, activation='relu')(feat)
+    feat = layers.Dropout(0.5)(feat)
+    logits = layers.Dense(n_classes)(feat)
 
     model = tf.keras.Model(inputs=[image, *tokens], outputs=logits)
     return model
@@ -232,9 +234,9 @@ def train(config, logdir):
         ds_val = ds_factory.build(df_v, batch_size=batch_size)
 
         # Build model
-        model = build_model(**model_config)
+        model = build_model(n_classes=n_classes, **model_config)
+        print(model.summary())
 
-        # TODO: set appropriate loss function
         model.compile(
             optimizer=optimizers.Adam(learning_rate),
             loss=losses.SparseCategoricalCrossentropy(from_logits=True),
