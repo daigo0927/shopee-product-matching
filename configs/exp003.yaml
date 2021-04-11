@@ -1,0 +1,21 @@
+datadir: 'data'
+
+preprocess:
+  target_size: [256, 256]
+  max_token_length: 128
+
+model:
+  image_size: ${preprocess.target_size}
+  token_length: ${preprocess.max_token_length}
+  effnet_weights: 'assets/effnet_official/noisy_student_efficientnet-b0_notop.h5'
+  transformer_name: 'bert-base-uncased'
+  output_dim: 1024
+
+train:
+  n_splits: 5
+  epochs: 10
+  batch_size: 16
+  learning_rate: 0.001
+  patience: 5
+
+logdir: 'outputs'
