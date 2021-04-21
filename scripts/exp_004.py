@@ -88,17 +88,13 @@ class DatasetFactory:
     def __init__(self,
                  label_map,
                  n_classes,
-                 tfidf_model,
-                 sentence_encoder,
                  target_size):
         self.label_map = label_map
         self.n_classes = n_classes
-        self.tfidf_model = tfidf_model
-        self.sentence_encoder = sentence_encoder
         self.target_size = target_size
 
-    def build(self, df, image_aug=None, 
-              epochs=1, batch_size=4, is_training=False):
+    def build(self, df, tfidf_feats, title_embeds,
+              image_aug=None, epochs=1, batch_size=4, is_training=False):
         # Build image iterator
         ds_image = tf.data.Dataset.from_tensor_slices((
             df.image_path, df.label_group_id
@@ -112,25 +108,7 @@ class DatasetFactory:
             set_shape_fn = partial(set_shape, image_size=self.target_size)
             ds_image = ds_image.map(set_shape_fn, num_parallel_calls=AUTOTUNE)
 
-        # Build Tfidf feature
-        if not hasattr(self.tfidf_model, 'vocabulary_'):
-            tfidf_feats = self.tfidf_model.fit_transform(df.title)
-        else:
-            tfidf_feats = self.tfidf_model.transform(df.title)
-        tfidf_feats = tfidf_feats.toarray()
-        actual_dim = tfidf_feats.shape[-1]
-        tfidf_dim = self.tfidf_model.max_features
-        pad_dim = max(0, tfidf_dim - actual_dim)
-        tfidf_feats = np.pad(tfidf_feats, ((0, 0), (0, pad_dim)))
         ds_tfidf = tf.data.Dataset.from_tensor_slices(tfidf_feats)
-
-        # Build sentence feature
-        n_batches = np.ceil(len(df)/1000).astype(int)        
-        title_embeds = []
-        for i in tqdm(range(n_batches), desc='Embed text'):
-            embeds = self.sentence_encoder(df.loc[i*1000:(i+1)*1000, 'title'])
-            title_embeds.append(embeds)
-        title_embeds = tf.concat(title_embeds, axis=0)
         ds_embed = tf.data.Dataset.from_tensor_slices(title_embeds)
 
         # Concat image and title iterator
@@ -143,6 +121,35 @@ class DatasetFactory:
 
         ds = ds.batch(batch_size).prefetch(buffer_size=batch_size)
         return ds
+
+
+class FeatureFactory:
+    def __init__(self, tfidf_config, encoder_weights):
+        self.tfidf_dim = tfidf_config.max_features
+        self.tfidf_model = TfidfVectorizer(**tfidf_config)
+        self.sentence_encoder = hub.KerasLayer(encoder_weights)
+
+    def build(self, df):
+        # Build Tfidf feature
+        if not hasattr(self.tfidf_model, 'vocabulary_'):
+            tfidf_feats = self.tfidf_model.fit_transform(df.title)
+        else:
+            tfidf_feats = self.tfidf_model.transform(df.title)
+        tfidf_feats = tfidf_feats.toarray()
+        # Pad if required
+        actual_dim = tfidf_feats.shape[-1]
+        pad_dim = max(0, self.tfidf_dim - actual_dim)
+        tfidf_feats = np.pad(tfidf_feats, ((0, 0), (0, pad_dim)))
+
+        # Build USE feature
+        n_batches = np.ceil(len(df)/1000).astype(int)
+        title_embeds = []
+        for i in tqdm(range(n_batches), desc='Embed text'):
+            embeds = self.sentence_encoder(df.title[i*1000:(i+1)*1000])
+            title_embeds.append(embeds)
+        title_embeds = tf.concat(title_embeds, axis=0)
+
+        return tfidf_feats, title_embeds
 
 
 def build_model(image_size,
@@ -164,7 +171,8 @@ def build_model(image_size,
     tfidf = layers.Input([tfidf_dim], dtype=tf.float32, name='tfidf')
     tfidf_feat = layers.Dropout(0.5)(tfidf)
     tfidf_feat = layers.Dense(512, activation='relu')(tfidf_feat)
-    
+
+    # Universal sentence encoder embedding
     embed = layers.Input([512], dtype=tf.float32, name='embed')
 
     feat = tf.concat([image_feat, tfidf_feat, embed], axis=-1)
@@ -202,21 +210,11 @@ def train(config, logdir):
         A.Cutout(num_holes=8, max_h_size=12, max_w_size=12)
     ])
 
-    tfidf_model = TfidfVectorizer(
-        **preprocess_config.tfidf
-    )
-    sentence_encoder = hub.KerasLayer(
-        preprocess_config.encoder_weights
-    )
-
     ds_factory = DatasetFactory(
         label_map=label_map,
         n_classes=n_classes,
-        tfidf_model=tfidf_model,
-        sentence_encoder=sentence_encoder,
         target_size=target_size,
     )
-    ds_test = ds_factory.build(df_test, batch_size=batch_size)
 
     # Prepare training result placeholders
     logits_oof = np.zeros((len(df_train), n_classes))
@@ -228,15 +226,31 @@ def train(config, logdir):
         df_t = df_train.iloc[train_idx]
         df_v = df_train.iloc[val_idx]
 
+        # Build text features
+        feat_factory = FeatureFactory(
+            tfidf_config=preprocess_config.tfidf,
+            encoder_weights=preprocess_config.encoder_weights
+        )
+        tfidf_feats_t, title_embeds_t = feat_factory.build(df_t)
+        tfidf_feats_v, title_embeds_v = feat_factory.build(df_v)
+        tfidf_feats_test, title_embeds_test = feat_factory.build(df_test)
+
         # Build dataset
         ds_train = ds_factory.build(
-            df_t,
+            df_t, tfidf_feats_t, title_embeds_t,
             image_aug=image_aug,
             epochs=epochs,
             batch_size=batch_size,
             is_training=True
         )
-        ds_val = ds_factory.build(df_v, batch_size=batch_size)
+        ds_val = ds_factory.build(
+            df_v, tfidf_feats_v, title_embeds_v,
+            batch_size=batch_size
+        )
+        ds_test = ds_factory.build(
+            df_test, tfidf_feats_test, title_embeds_test,
+            batch_size=batch_size
+        )
 
         # Build model
         model = build_model(n_classes=n_classes, **model_config)

@@ -15,7 +15,7 @@ model:
 
 train:
   n_splits: 5
-  epochs: 10
+  epochs: 30
   batch_size: 16
   learning_rate: 0.001
   patience: 5
