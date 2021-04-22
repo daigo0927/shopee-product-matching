@@ -34,7 +34,7 @@ exp 6:
 - Efficient data operation
 - Image feature: EfficientNet-b0
 - Text feature: USE and TfIdf
-- ArcFace
+- CircleLossCL
 '''
 
 
@@ -164,7 +164,7 @@ class FeatureFactory:
 def build_model(image_size,
                 tfidf_dim,
                 effnet_weights,
-                arcface_params,
+                circle_loss_params,
                 n_classes) -> tf.keras.Model:
     # Image feature
     image = layers.Input([*image_size, 3], dtype=tf.uint8, name='image')
@@ -191,8 +191,8 @@ def build_model(image_size,
     label = tf.keras.layers.Input([], dtype=tf.int32)
     label_onehot = tf.one_hot(label, depth=n_classes)
 
-    arcface = ArcFace(n_classes, **arcface_params)
-    logits = arcface([feat, label_onehot])
+    similarity = CircleLossCL(n_classes, **circle_loss_params)
+    logits = similarity([feat, label_onehot])
 
     model = tf.keras.Model(inputs=[image, tfidf, embed, label], outputs=logits)
     return model

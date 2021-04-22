@@ -12,9 +12,9 @@ model:
   image_size: ${preprocess.target_size}
   tfidf_dim: ${preprocess.tfidf.max_features}
   effnet_weights: 'assets/effnet_official/noisy_student_efficientnet-b0_notop.h5'
-  arcface_params:
-    margin: 0.5
-    scale: 64
+  circle_loss_params:
+    margin: 0.25
+    scale: 256
 
 train:
   n_splits: 5
