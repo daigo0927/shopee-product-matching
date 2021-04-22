@@ -30,10 +30,11 @@ seed_everything()
 
 
 '''
-exp 4:
+exp 6:
 - Efficient data operation
-- Image feature: EfficientNet
+- Image feature: EfficientNet-b0
 - Text feature: USE and TfIdf
+- ArcFace
 '''
 
 
@@ -82,7 +83,7 @@ def set_shape(image, label_id, image_size):
 
 def rearrange(image_inputs, tfidf, embed):
     image, label_id = image_inputs
-    return (image, tfidf, embed), label_id
+    return (image, tfidf, embed, label_id), label_id
 
 
 class DatasetFactory:
@@ -151,7 +152,7 @@ class FeatureFactory:
         title_embeds = tf.concat(title_embeds, axis=0)
 
         return tfidf_feats, title_embeds
-    
+
     def save(self, savedir):
         if not os.path.exists(savedir):
             os.makedirs(savedir)
@@ -163,6 +164,7 @@ class FeatureFactory:
 def build_model(image_size,
                 tfidf_dim,
                 effnet_weights,
+                arcface_params,
                 n_classes) -> tf.keras.Model:
     # Image feature
     image = layers.Input([*image_size, 3], dtype=tf.uint8, name='image')
@@ -185,9 +187,14 @@ def build_model(image_size,
 
     feat = tf.concat([image_feat, tfidf_feat, embed], axis=-1)
     feat = layers.Dropout(0.5)(feat)
-    logits = layers.Dense(n_classes)(feat)
 
-    model = tf.keras.Model(inputs=[image, tfidf, embed], outputs=logits)
+    label = tf.keras.layers.Input([], dtype=tf.int32)
+    label_onehot = tf.one_hot(label, depth=n_classes)
+
+    arcface = ArcFace(n_classes, **arcface_params)
+    logits = arcface([feat, label_onehot])
+
+    model = tf.keras.Model(inputs=[image, tfidf, embed, label], outputs=logits)
     return model
 
 
@@ -321,13 +328,15 @@ def train(config, logdir):
 
 
 def run():
+    # Get filename: 'exp_abc'
+    exec_file = os.path.basename(__file__).split('.')[0]
+    
     # Load setting from yaml and CLI
-    base_config = OmegaConf.load('configs/exp_004.yaml')
+    base_config = OmegaConf.load(f'configs/{exec_file}.yaml')
     cli_config = OmegaConf.from_cli()
     config = OmegaConf.merge(base_config, cli_config)
 
     # Create log directory
-    exec_file = os.path.basename(__file__).split('.')[0]
     time_str = time.strftime('%Y-%m-%dT%H-%M-%S')
     logdir = f'{config.logdir}/{exec_file}/{time_str}'
     print(f'logdir: {logdir}')
