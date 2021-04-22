@@ -15,7 +15,8 @@ class CosineSimilarity(layers.Layer):
         input_dim = input_shape[-1]
         self.W = self.add_weight(shape=(input_dim, self.num_classes),
                                  initializer='random_normal',
-                                 trainable=True)
+                                 trainable=True,
+                                 name='kernel')
 
     def call(self, inputs):
         x = tf.nn.l2_normalize(inputs, axis=-1) # (batch_size, ndim)
