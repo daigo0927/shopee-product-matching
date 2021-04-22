@@ -1,0 +1,23 @@
+datadir: 'data'
+
+preprocess:
+  target_size: [384, 384]
+  tfidf:
+    stop_words: 'english'
+    binary: True
+    max_features: 25000
+  encoder_weights: 'assets/universal-sentence-encoders/universal-sentence-encoder-multilingual_3'
+
+model:
+  image_size: ${preprocess.target_size}
+  tfidf_dim: ${preprocess.tfidf.max_features}
+  effnet_weights: 'assets/effnet_official/noisy_student_efficientnet-b4_notop.h5'
+
+train:
+  n_splits: 5
+  epochs: 50
+  batch_size: 16
+  learning_rate: 0.001
+  patience: 5
+
+logdir: 'outputs'
