@@ -1,0 +1,25 @@
+datadir: 'data'
+
+preprocess:
+  target_size: [256, 256]
+  tokenize:
+    max_length: 128
+  encoder_weights: 'assets/universal-sentence-encoders/universal-sentence-encoder-multilingual_3'
+
+model:
+  image_size: ${preprocess.target_size}
+  token_length: ${preprocess.tokenize.max_length}
+  effnet_weights: 'assets/effnet_official/noisy_student_efficientnet-b0_notop.h5'
+  transformer_name: 'bert-base-uncased'
+  arcface_params:
+    margin: 0.5
+    scale: 24
+
+train:
+  n_splits: 5
+  epochs: 50
+  batch_size: 16
+  learning_rate: 0.001
+  patience: 5
+
+logdir: 'outputs'
