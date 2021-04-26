@@ -311,7 +311,7 @@ def train(config, logdir):
         target_size=target_size,
     )
 
-    cv_scores = []
+    feats_oof, cv_scores = [], []
     kf = GroupKFold(n_splits=train_config.n_splits)
     splits = kf.split(df_train, groups=df_train.label_group_id)
     for cv, (train_idx, val_idx) in enumerate(splits):
@@ -369,8 +369,14 @@ def train(config, logdir):
         model.set_weights(recorder.best_weights)
         model.save_weights(f'{model_dir}/cv{cv}-score{best_score:.4f}')
 
+        _, feats_val = model.predict(ds_val)
+        feats_oof.append(feats_val)
+        
         cv_scores.append(best_score)
 
+    with open(f'{logdir}/feats_oof.pkl', 'wb') as f:
+        pickle.dump(feats_oof, f)
+        
     df_cv = pd.DataFrame(cv_scores, columns=['f1'])
     df_cv.to_csv(f'{logdir}/cv_scores.csv', index=False)
     print(f'CV average F1score: {df_cv.f1.mean():.4f}')
