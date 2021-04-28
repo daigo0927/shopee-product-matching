@@ -33,10 +33,10 @@ seed_everything()
 '''
 exp 12:
 - Efficient data operation
-- Image feature: EfficientNet-b4
+- Image feature: allow any type of EfficientNet (b0-7)
 - Text feature: USE and TfIdf
 - CircleLossCL
-- output both embedding and logit (only logit in ~007)
+- output both embedding and logit
 - Train on all dataset, No CV, save weights every 5 epochs
 - Check F1score for all training data for each weights at last
 '''
@@ -277,7 +277,7 @@ class FixedStepCheckpoint(callbacks.Callback):
         distances, indices = knn.kneighbors(features)
 
         scores = []
-        for thr in np.arange(0.1, 0.5, 0.05):
+        for thr in np.arange(0.1, 1.0, 0.1):
             f1 = neighbor_f1score(distances, indices, self.df, thr)
             scores.append([thr, f1])
         df = pd.DataFrame(scores, columns=['threshold', 'f1score'])
