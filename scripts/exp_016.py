@@ -340,7 +340,12 @@ class FixedStepCheckpoint(callbacks.Callback):
 
         self.model.save_weights(f'{self.savedir}/weights_{epoch+1:02}epoch')
 
-        *_, features = self.model.predict(self.ds)
+        features = []
+        for inp, _ in self.ds:
+            *_, feats = self.model(inp, training=False)
+            features.append(feats.numpy())
+        features = np.concatenate(features, axis=0)
+        
         knn = NearestNeighbors(n_neighbors=50, metric='cosine', n_jobs=-1)
         knn.fit(features)
         distances, indices = knn.kneighbors(features)
