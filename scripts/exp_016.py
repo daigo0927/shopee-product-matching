@@ -291,11 +291,6 @@ def contrastive_loss(label, logit):
     return loss
 
 
-def dummy_loss(y_true, y_pred):
-    ''' Dummy loss to ignore feature embedding in the training '''
-    return 0
-
-
 def f1score(labels, preds):
     def f1(row):
         n = len(np.intersect1d(row.target, row.matches))
@@ -413,7 +408,8 @@ def train(config, logdir):
         optimizer=tfa.optimizers.RectifiedAdam(learning_rate),
         loss=[losses.SparseCategoricalCrossentropy(from_logits=True),
               contrastive_loss,
-              dummy_loss],
+              None],
+        loss_weights=train_config.loss_weights,
         metrics=[[metrics.SparseCategoricalAccuracy(name='acc')], [], []]
     )
 
