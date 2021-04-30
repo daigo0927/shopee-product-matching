@@ -1,0 +1,33 @@
+datadir: 'data'
+
+preprocess:
+  target_size: [320, 320]
+  tokenizer:
+    type: ${model.bert_weights}
+    max_length: 128
+  tfidf:
+    stop_words: 'english'
+    binary: True
+    max_features: 25000
+
+model:
+  image_size: ${preprocess.target_size}
+  token_length: ${preprocess.tokenizer.max_length}
+  tfidf_dim: ${preprocess.tfidf.max_features}
+  effnet_type: 'EfficientNetB2'
+  effnet_weights: 'assets/effnet_official/noisy_student_efficientnet-b2_notop.h5'
+  bert_weights: 'assets/bert-weights-basic/distilbert-base-multilingual-cased'
+  circle_loss:
+    margin: 0.25
+    scale: 256
+
+train:
+  n_splits: 5
+  epochs: 30
+  batch_size: 16
+  learning_rate: 0.001
+  loss_weights: [1.0, 5.0, 0.0]
+  checkpoint:
+    save_step: 5
+
+logdir: 'outputs'
