@@ -332,13 +332,11 @@ def train(config, logdir):
     )
 
     # Build image augmentation
+    th, tw = target_size
     image_aug = A.Compose([
-        A.RandomCrop(240, 240),
-        A.Resize(*target_size),
-        A.ShiftScaleRotate(),
+        A.RandomSizedCrop((th//2, th), th, tw),
+        A.Rotate(45),
         A.ColorJitter(),
-        A.HorizontalFlip(),
-        A.VerticalFlip(),
         A.Cutout(num_holes=8, max_h_size=12, max_w_size=12)
     ])
 
