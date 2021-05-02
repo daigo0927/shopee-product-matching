@@ -296,6 +296,7 @@ class EmbeddingF1(callbacks.Callback):
             self.best = current
             self.wait = 0
             self.best_weights = self.model.get_weights()
+            self.df_best = df
         else:
             self.wait += 1
             if self.wait >= self.patience:
@@ -303,7 +304,6 @@ class EmbeddingF1(callbacks.Callback):
                 self.model.stop_training = True
                 self.model.set_weights(self.best_weights)
                 print('Early stopped, set best weights to the model')
-                self.df_best = df
 
     def on_train_end(self, logs=None):
         if self.stopped_epoch > 0:
